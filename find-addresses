@@ -1,0 +1,89 @@
+#!/usr/bin/awk -f
+function add_size(name, size, vma, lma, fa)
+{
+	scns[idx, "name"] = name
+	scns[idx, "size"] = size
+	scns[idx, "vma"] = vma
+	scns[idx, "lma"] = lma
+	scns[idx, "fa"] = fa
+
+	if (found != 1) {
+		if ($1 == "Idx")
+			found = 1
+		next
+	}
+}
+
+function load(idx)
+{
+	return match(scns[idx, "flags"], /LOAD/)
+}
+
+function alloc(idx)
+{
+	return match(scns[idx, "flags"], /ALLOC/)
+}
+
+function max(a, b)
+{
+	return a > b ? a : b
+}
+
+function start(idx)
+{
+	#print scns[idx, "name"] " vma:" scns[idx, "vma"] " lma:" scns[idx, "lma"] " fa:" scns[idx, "fa"] " max: " \
+	#	max(scns[idx, "vma"],
+	#	    max(scns[idx, "lma"], scns[idx, "fa"]))
+	return max(scns[idx, "vma"],
+		   max(scns[idx, "lma"], scns[idx, "fa"]))
+}
+
+function end(idx)
+{
+	return start(idx) + scns[idx, "size"]
+}
+
+BEGIN {
+	maxidx = 0
+	idx = 0
+	found = 0
+	pos = 0
+}
+
+{
+	#print "FNR:" FNR " $0:" $0
+	if (pos % 2 == 0) {
+		add_size($2, strtonum("0x"$3), strtonum("0x"$4),
+			 strtonum("0x"$5), strtonum("0x"$6))
+		indices[idx] = idx
+	} else {
+		scns[idx, "flags"] = $0
+		#print "scns[" idx "]:" scns[idx, "name"] " " scns[idx, "flags"]
+		idx++
+	}
+	pos++
+}
+
+END {
+	maxidx = 0
+	for (idx in indices)
+	{
+		if (!load(idx) && !alloc(idx)) {
+			#print "scns[" idx ", flags]:" scns[idx, "flags"]
+			continue
+		}
+		#print "name:" scns[idx, "name"] " start:" start(idx) " end:" end(idx)
+		if (end(idx) > end(maxidx))
+		{
+			#print "updating maxidx " idx " -> " maxidx
+			maxidx = idx
+		}
+	}
+	db = end(maxidx)
+	if (db % 4096 != 0)
+		db += 4096 - (db % 4096)
+	dbx = db + dbsz
+	if (dbx % 4096 != 0)
+		dbx += 4096 - (dbx % 4096)
+	printf "0x%x 0x%x\n", db, dbx
+}

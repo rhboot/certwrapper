@@ -19,6 +19,30 @@ LD = ld
 OBJCOPY = objcopy
 OBJCOPY_GTE224  = $(shell expr `$(OBJCOPY) --version |grep ^"GNU objcopy" | sed 's/^.*\((.*)\|version\) //g' | cut -f1-2 -d.` \>= 2.24)
 
+define dbsize = \
+	$(if $(filter-out undefined,$(origin VENDOR_DB_FILE)),$(shell /usr/bin/stat --printf="%s" $(VENDOR_DB_FILE)),0)
+endef
+
+DB_ADDRESSES=$(shell objdump -h certmule.so | ./find-addresses dbsz=$(call dbsize))
+DB_ADDRESS=$(word $(2), $(call DB_ADDRESSES, $(1)))
+
+DB_SECTION_ALIGN = 512
+DB_SECTION_FLAGS = alloc,contents,load,readonly,data
+define VENDOR_DB =
+	$(if $(filter-out undefined,$(origin VENDOR_DB_FILE)),\
+	--set-section-alignment .db=$(DB_SECTION_ALIGN) \
+	--set-section-flags .db=$(DB_SECTION_FLAGS) \
+	--add-section .db="$(VENDOR_DB_FILE)" \
+	--change-section-address .db=$(call DB_ADDRESS, $(1), 1),)
+endef
+define VENDOR_DBX =
+	$(if $(filter-out undefined,$(origin VENDOR_DBX_FILE)),\
+	--set-section-alignment .dbx=$(DB_SECTION_ALIGN) \
+	--set-section-flags .dbx=$(DB_SECTION_FLAGS) \
+	--add-section .dbx="$(VENDOR_DBX_FILE)" \
+	--change-section-address .dbx=$(call DB_ADDRESS, $(1), 2),)
+endef
+
 ifeq ($(ARCH),x86_64)
 	FORMAT = --target efi-app-$(ARCH)
 	BUILDFLAGS += -mno-mmx -mno-sse -mno-red-zone -nostdinc \
@@ -52,6 +76,8 @@ ifneq ($(OBJCOPY_GTE224),1)
 endif
 	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic -j .dynsym \
 		   -j .rel* -j .rela* -j .reloc -j .eh_frame \
+		   --file-alignment 512 --section-alignment 4096 -D \
+		   $(call VENDOR_DB, $<) $(call VENDOR_DBX, $<) \
 		   $(FORMAT) $^ $@
 
 %.so : %.o
