@@ -5,23 +5,21 @@ LIBDIR := /usr/lib64
 GNUEFIDIR ?= $(LIBDIR)/gnuefi/
 CC = gcc
 CFLAGS ?= -O0 -g3
-BUILDFLAGS := $(CFLAGS) -fpic -Werror -Wall -Wextra -fshort-wchar \
+BUILDFLAGS := $(CFLAGS) -fPIC -Werror -Wall -Wextra -fshort-wchar \
         -fno-merge-constants -ffreestanding \
         -fno-stack-protector -fno-stack-check --std=gnu11 -DCONFIG_$(ARCH) \
         -I/usr/include/efi/ -I/usr/include/efi/$(ARCH)/ \
         -I/usr/include/efi/protocol
-CCLDFLAGS       ?= -nostdlib -Wl,--warn-common \
+CCLDFLAGS ?= -nostdlib -fPIC -Wl,--warn-common \
         -Wl,--no-undefined -Wl,--fatal-warnings \
         -Wl,-shared -Wl,-Bsymbolic -L$(LIBDIR) -L$(GNUEFIDIR) \
-        -Wl,--build-id=sha1 -Wl,--hash-style=sysv \
-        $(GNUEFIDIR)/crt0-efi-$(ARCH).o
+        -Wl,--build-id=sha1 -Wl,--hash-style=sysv
 LD = ld
 OBJCOPY = objcopy
-OBJCOPY_GTE224  = $(shell expr `$(OBJCOPY) --version |grep ^"GNU objcopy" | sed 's/^.*\((.*)\|version\) //g' | cut -f1-2 -d.` \>= 2.24)
+OBJCOPY_GTE224  = $(shell expr $$($(OBJCOPY) --version |grep "^GNU objcopy" | sed 's/^.*\((.*)\|version\) //g' | cut -f1-2 -d.) \>= 2.24)
 
-define dbsize = \
+dbsize = \
 	$(if $(filter-out undefined,$(origin VENDOR_DB_FILE)),$(shell /usr/bin/stat --printf="%s" $(VENDOR_DB_FILE)),0)
-endef
 
 DB_ADDRESSES=$(shell objdump -h certmule.so | ./find-addresses dbsz=$(call dbsize))
 DB_ADDRESS=$(word $(2), $(call DB_ADDRESSES, $(1)))
@@ -35,13 +33,9 @@ define VENDOR_DB =
 	--add-section .db="$(VENDOR_DB_FILE)" \
 	--change-section-address .db=$(call DB_ADDRESS, $(1), 1),)
 endef
-define VENDOR_DBX =
-	$(if $(filter-out undefined,$(origin VENDOR_DBX_FILE)),\
-	--set-section-alignment .dbx=$(DB_SECTION_ALIGN) \
-	--set-section-flags .dbx=$(DB_SECTION_FLAGS) \
-	--add-section .dbx="$(VENDOR_DBX_FILE)" \
-	--change-section-address .dbx=$(call DB_ADDRESS, $(1), 2),)
-endef
+
+OBJFLAGS =
+SOLIBS =
 
 ifeq ($(ARCH),x86_64)
 	FORMAT = --target efi-app-$(ARCH)
@@ -70,18 +64,24 @@ endif
 
 all : certmule.efi
 
+certmule.so : SOLIBS=
+certmule.so : SOFLAGS=
+certmule.so : BUILDFLAGS+=-DVENDOR_DB
+certmule.efi : OBJFLAGS = --strip-unneeded $(call VENDOR_DB, $<)
+certmule.efi : SECTIONS=.text .reloc .db
+certmule.efi : VENDOR_DB_FILE?=db.esl
+
 %.efi : %.so
 ifneq ($(OBJCOPY_GTE224),1)
 	$(error objcopy >= 2.24 is required)
 endif
-	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic -j .dynsym \
-		   -j .rel* -j .rela* -j .reloc -j .eh_frame \
+	$(OBJCOPY) $(foreach section,$(SECTIONS),-j $(section) ) \
 		   --file-alignment 512 --section-alignment 4096 -D \
-		   $(call VENDOR_DB, $<) $(call VENDOR_DBX, $<) \
+		   $(OBJFLAGS) \
 		   $(FORMAT) $^ $@
 
 %.so : %.o
-	$(CC) $(CCLDFLAGS) -o $@ $^ -lefi -lgnuefi \
+	$(CC) $(CCLDFLAGS) $(SOFLAGS) -o $@ $^ $(SOLIBS) \
 		$(shell $(CC) -print-libgcc-file-name) \
 		-T $(GNUEFIDIR)/elf_$(ARCH)_efi.lds
 

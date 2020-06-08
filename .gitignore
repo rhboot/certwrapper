@@ -11,3 +11,6 @@
 
 # Executables
 *.efi
+
+# EFI Security Database files
+*.esl
