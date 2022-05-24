@@ -49,6 +49,14 @@ define VENDOR_DB =
 	--change-section-address .db=$(call DB_ADDRESS, $(1), 1),)
 endef
 
+define add-vendor-sbat
+$(OBJCOPY) --add-section ".$(patsubst %.csv,%,$(1))=$(1)" $(2)
+
+endef
+
+SBATPATH = $(TOPDIR)/data/sbat.csv
+VENDOR_SBATS := $(sort $(foreach x,$(wildcard $(TOPDIR)/data/sbat.*.csv data/sbat.*.csv),$(notdir $(x))))
+
 OBJFLAGS =
 SOLIBS =
 
@@ -78,11 +86,12 @@ endif
 
 all : certmule.efi
 
+certmule.so : sbat_data.o certmule.o
 certmule.so : SOLIBS=
 certmule.so : SOFLAGS=
 certmule.so : BUILDFLAGS+=-DVENDOR_DB
 certmule.efi : OBJFLAGS = --strip-unneeded $(call VENDOR_DB, $<)
-certmule.efi : SECTIONS=.text .reloc .db
+certmule.efi : SECTIONS=.text .reloc .db .sbat
 certmule.efi : VENDOR_DB_FILE?=db.esl
 
 %.efi : %.so
@@ -93,6 +102,14 @@ endif
 		   --file-alignment 512 --section-alignment 4096 -D \
 		   $(OBJFLAGS) \
 		   $(FORMAT) $^ $@
+
+sbat_data.o : | $(SBATPATH) $(VENDOR_SBATS)
+sbat_data.o : /dev/null
+	$(CC) $(BUILDFLAGS) -x c -c -o $@ $<
+	$(OBJCOPY) --add-section .sbat=$(SBATPATH) \
+		--set-section-flags .sbat=contents,alloc,load,readonly,data \
+		$@
+	$(foreach vs,$(VENDOR_SBATS),$(call add-vendor-sbat,$(vs),$@))
 
 %.so : %.o
 	$(CC) $(CCLDFLAGS) $(SOFLAGS) -o $@ $^ $(SOLIBS) \
