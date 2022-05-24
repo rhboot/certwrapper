@@ -65,8 +65,7 @@ ifeq ($(ARCH),ia32)
 endif
 
 ifeq ($(ARCH),aarch64)
-	FORMAT = -O binary
-	CCLDFLAGS += -Wl,--defsym=EFI_SUBSYSTEM=0xa
+	FORMAT = --target efi-app-$(ARCH)
 	BUILDFLAGS += -ffreestanding -I$(shell $(CC) -print-file-name=include)
 endif
 
