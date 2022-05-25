@@ -2,14 +2,15 @@ VERSION = 1
 ARCH            = $(shell uname -m | sed s,i[3456789]86,ia32,)
 DATADIR := /usr/share
 LIBDIR := /usr/lib64
-GNUEFIDIR ?= $(LIBDIR)/gnuefi/
+GNUEFIDIR ?= gnu-efi/
 CC = gcc
 CFLAGS ?= -O0 -g3
 BUILDFLAGS := $(CFLAGS) -fPIC -Werror -Wall -Wextra -fshort-wchar \
         -fno-merge-constants -ffreestanding \
         -fno-stack-protector -fno-stack-check --std=gnu11 -DCONFIG_$(ARCH) \
-        -I/usr/include/efi/ -I/usr/include/efi/$(ARCH)/ \
-        -I/usr/include/efi/protocol
+	-I$(GNUEFIDIR)/inc \
+	-I$(GNUEFIDIR)/inc/$(ARCH) \
+	-I$(GNUEFIDIR)/inc/protocol
 CCLDFLAGS ?= -nostdlib -fPIC -Wl,--warn-common \
         -Wl,--no-undefined -Wl,--fatal-warnings \
         -Wl,-shared -Wl,-Bsymbolic -L$(LIBDIR) -L$(GNUEFIDIR) \
@@ -83,13 +84,16 @@ endif
 %.so : %.o
 	$(CC) $(CCLDFLAGS) $(SOFLAGS) -o $@ $^ $(SOLIBS) \
 		$(shell $(CC) -print-libgcc-file-name) \
-		-T $(GNUEFIDIR)/elf_$(ARCH)_efi.lds
+		-T $(GNUEFIDIR)/gnuefi/elf_$(ARCH)_efi.lds
 
 %.o : %.c
 	$(CC) $(BUILDFLAGS) -c -o $@ $^
 
 clean :
 	@rm -vf *.o *.so *.efi
+
+update :
+	git submodule update --init --recursive
 
 install :
 	install -D -d -m 0755 $(INSTALLROOT)/$(DATADIR)/certmule-$(VERSION)
@@ -98,21 +102,11 @@ install :
 GITTAG = $(VERSION)
 
 test-archive:
-	@rm -rf /tmp/certmule-$(VERSION) /tmp/certmule-$(VERSION)-tmp
-	@mkdir -p /tmp/certmule-$(VERSION)-tmp
-	@git archive --format=tar $(shell git branch | awk '/^*/ { print $$2 }') | ( cd /tmp/certmule-$(VERSION)-tmp/ ; tar x )
-	@git diff | ( cd /tmp/certmule-$(VERSION)-tmp/ ; patch -s -p1 -b -z .gitdiff )
-	@mv /tmp/certmule-$(VERSION)-tmp/ /tmp/certmule-$(VERSION)/
-	@dir=$$PWD; cd /tmp; tar -c --bzip2 -f $$dir/certmule-$(VERSION).tar.bz2 certmule-$(VERSION)
-	@rm -rf /tmp/certmule-$(VERSION)
-	@echo "The archive is in certmule-$(VERSION).tar.bz2"
+	@./make-archive $(if $(call get-config,certmule.origin),--origin "$(call get-config,certmule.origin)") --test "$(VERSION)"
 
-archive:
-	git tag $(GITTAG) refs/heads/master
-	@rm -rf /tmp/certmule-$(VERSION) /tmp/certmule-$(VERSION)-tmp
-	@mkdir -p /tmp/certmule-$(VERSION)-tmp
-	@git archive --format=tar $(GITTAG) | ( cd /tmp/certmule-$(VERSION)-tmp/ ; tar x )
-	@mv /tmp/certmule-$(VERSION)-tmp/ /tmp/certmule-$(VERSION)/
-	@dir=$$PWD; cd /tmp; tar -c --bzip2 -f $$dir/certmule-$(VERSION).tar.bz2 certmule-$(VERSION)
-	@rm -rf /tmp/certmule-$(VERSION)
-	@echo "The archive is in certmule-$(VERSION).tar.bz2"
+tag:
+	git tag --sign $(GITTAG) refs/heads/main
+	git tag -f latest-release $(GITTAG)
+
+archive: tag
+	@./make-archive $(if $(call get-config,certmule.origin),--origin "$(call get-config,certmule.origin)") --release "$(VERSION)" "$(GITTAG)" "certmule-$(GITTAG)"
