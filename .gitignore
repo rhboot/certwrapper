@@ -14,3 +14,7 @@
 
 # EFI Security Database files
 *.esl
+
+# editor backup/tmp files
+*~
+*.sw?
