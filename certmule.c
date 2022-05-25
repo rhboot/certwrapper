@@ -5,6 +5,13 @@
  * Author(s): Peter Jones <pjones@redhat.com>
  */
 
+#ifndef __x86_64__
+#define __builtin_ms_va_copy __builtin_va_copy
+#define __builtin_ms_va_start __builtin_va_start
+#define __builtin_ms_va_end __builtin_va_end
+#define __builtin_ms_va_list __builtin_va_list
+#endif
+
 #include <efi.h>
 #include <efilib.h>
 
