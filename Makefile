@@ -1,9 +1,22 @@
 VERSION = 1
 ARCH            = $(shell uname -m | sed s,i[3456789]86,ia32,)
+
+ifeq ($(MAKELEVEL),0)
+TOPDIR		?= $(shell pwd)
+endif
+ifeq ($(TOPDIR),)
+override TOPDIR := $(shell pwd)
+endif
+override TOPDIR	:= $(abspath $(TOPDIR))
+VPATH		= $(TOPDIR)
+export TOPDIR
+
+CROSS_COMPILE =
 DATADIR := /usr/share
 LIBDIR := /usr/lib64
-GNUEFIDIR ?= gnu-efi/
-CC = gcc
+GNUEFIDIR ?= $(TOPDIR)/gnu-efi/
+COMPILER = gcc
+CC = $(CROSS_COMPILE)$(COMPILER)
 CFLAGS ?= -O0 -g3
 BUILDFLAGS := $(CFLAGS) -fPIC -Werror -Wall -Wextra -fshort-wchar \
         -fno-merge-constants -ffreestanding \
@@ -15,14 +28,14 @@ CCLDFLAGS ?= -nostdlib -fPIC -Wl,--warn-common \
         -Wl,--no-undefined -Wl,--fatal-warnings \
         -Wl,-shared -Wl,-Bsymbolic -L$(LIBDIR) -L$(GNUEFIDIR) \
         -Wl,--build-id=sha1 -Wl,--hash-style=sysv
-LD = ld
-OBJCOPY = objcopy
+LD = $(CROSS_COMPILE)ld
+OBJCOPY = $(CROSS_COMPILE)objcopy
 OBJCOPY_GTE224  = $(shell expr $$($(OBJCOPY) --version |grep "^GNU objcopy" | sed 's/^.*\((.*)\|version\) //g' | cut -f1-2 -d.) \>= 2.24)
 
 dbsize = \
 	$(if $(filter-out undefined,$(origin VENDOR_DB_FILE)),$(shell /usr/bin/stat --printf="%s" $(VENDOR_DB_FILE)),0)
 
-DB_ADDRESSES=$(shell objdump -h certmule.so | ./find-addresses dbsz=$(call dbsize))
+DB_ADDRESSES=$(shell objdump -h certmule.so | $(TOPDIR)/find-addresses dbsz=$(call dbsize))
 DB_ADDRESS=$(word $(2), $(call DB_ADDRESSES, $(1)))
 
 DB_SECTION_ALIGN = 512
