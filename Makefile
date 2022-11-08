@@ -55,6 +55,8 @@ $(OBJCOPY) --add-section ".$(patsubst %.csv,%,$(1))=$(1)" $(2)
 endef
 
 SBATPATH = $(TOPDIR)/data/sbat.csv
+SBATLEVELLATESTPATH = $(TOPDIR)/data/sbat_level_latest.csv
+SBATLEVELPREVIOUSPATH = $(TOPDIR)/data/sbat_level_previous.csv
 VENDOR_SBATS := $(sort $(foreach x,$(wildcard $(TOPDIR)/data/sbat.*.csv data/sbat.*.csv),$(notdir $(x))))
 
 OBJFLAGS =
@@ -84,7 +86,7 @@ ifeq ($(ARCH),arm)
 	BUILDFLAGS += -ffreestanding -I$(shell $(CC) -print-file-name=include)
 endif
 
-all : certmule.efi
+all : certmule.efi sbat_level.efi
 
 certmule.so : sbat_data.o certmule.o
 certmule.so : SOLIBS=
@@ -93,6 +95,12 @@ certmule.so : BUILDFLAGS+=-DVENDOR_DB
 certmule.efi : OBJFLAGS = --strip-unneeded $(call VENDOR_DB, $<)
 certmule.efi : SECTIONS=.text .reloc .db .sbat
 certmule.efi : VENDOR_DB_FILE?=db.esl
+
+sbat_level.so : sbat_data.o sbat_level.o certmule.o
+sbat_level.so : SOLIBS=
+sbat_level.so : SOFLAGS=
+sbat_level.efi : OBJFLAGS = --strip-unneeded 
+sbat_level.efi : SECTIONS=.text .reloc .sbatl .sbatp .sbat
 
 %.efi : %.so
 ifneq ($(OBJCOPY_GTE224),1)
@@ -110,6 +118,15 @@ sbat_data.o : /dev/null
 		--set-section-flags .sbat=contents,alloc,load,readonly,data \
 		$@
 	$(foreach vs,$(VENDOR_SBATS),$(call add-vendor-sbat,$(vs),$@))
+
+sbat_level.o : /dev/null
+	$(CC) $(BUILDFLAGS) -x c -c -o $@ $<
+	$(OBJCOPY) --add-section .sbatl=$(SBATLEVELLATESTPATH) \
+		--set-section-flags .sbatl=contents,alloc,load,readonly,data \
+		$@
+	$(OBJCOPY) --add-section .sbatp=$(SBATLEVELPREVIOUSPATH) \
+		--set-section-flags .sbatp=contents,alloc,load,readonly,data \
+		$@
 
 %.so : %.o
 	$(CC) $(CCLDFLAGS) $(SOFLAGS) -o $@ $^ $(SOLIBS) \
