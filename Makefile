@@ -114,7 +114,7 @@ sbat_data.o : /dev/null
 %.so : %.o
 	$(CC) $(CCLDFLAGS) $(SOFLAGS) -o $@ $^ $(SOLIBS) \
 		$(shell $(CC) -print-libgcc-file-name) \
-		-T $(GNUEFIDIR)/gnuefi/elf_$(ARCH)_efi.lds
+		-T $(TOPDIR)/elf_$(ARCH)_efi.lds
 
 %.o : %.c
 	$(CC) $(BUILDFLAGS) -c -o $@ $^
