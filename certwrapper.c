@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 /*
- * certmule.c - a certificate wrapper for EFI security databases
+ * certwrapper.c - a certificate wrapper for EFI security databases
  *
  * Author(s): Peter Jones <pjones@redhat.com>
  */
