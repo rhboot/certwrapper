@@ -25,7 +25,7 @@ BUILDFLAGS := $(CFLAGS) -fPIC -Werror -Wall -Wextra -fshort-wchar \
 	-I$(GNUEFIDIR)/inc/$(ARCH) \
 	-I$(GNUEFIDIR)/inc/protocol
 CCLDFLAGS ?= -nostdlib -fPIC -Wl,--warn-common \
-        -Wl,--no-undefined -Wl,--fatal-warnings \
+        -Wl,--no-undefined \
         -Wl,-shared -Wl,-Bsymbolic -L$(LIBDIR) -L$(GNUEFIDIR) \
         -Wl,--build-id=sha1 -Wl,--hash-style=sysv
 LD = $(CROSS_COMPILE)ld
