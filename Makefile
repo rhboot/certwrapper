@@ -36,7 +36,7 @@ INSTALLROOT ?= $(DESTDIR)
 dbsize = \
 	$(if $(filter-out undefined,$(origin VENDOR_DB_FILE)),$(shell /usr/bin/stat --printf="%s" $(VENDOR_DB_FILE)),0)
 
-DB_ADDRESSES=$(shell objdump -h certmule.so | $(TOPDIR)/find-addresses dbsz=$(call dbsize))
+DB_ADDRESSES=$(shell objdump -h certwrapper.so | $(TOPDIR)/find-addresses dbsz=$(call dbsize))
 DB_ADDRESS=$(word $(2), $(call DB_ADDRESSES, $(1)))
 
 DB_SECTION_ALIGN = 512
@@ -84,15 +84,15 @@ ifeq ($(ARCH),arm)
 	BUILDFLAGS += -ffreestanding -I$(shell $(CC) -print-file-name=include)
 endif
 
-all : certmule.efi
+all : certwrapper.efi
 
-certmule.so : sbat_data.o certmule.o
-certmule.so : SOLIBS=
-certmule.so : SOFLAGS=
-certmule.so : BUILDFLAGS+=-DVENDOR_DB
-certmule.efi : OBJFLAGS = --strip-unneeded $(call VENDOR_DB, $<)
-certmule.efi : SECTIONS=.text .reloc .db .sbat
-certmule.efi : VENDOR_DB_FILE?=db.esl
+certwrapper.so : sbat_data.o certwrapper.o
+certwrapper.so : SOLIBS=
+certwrapper.so : SOFLAGS=
+certwrapper.so : BUILDFLAGS+=-DVENDOR_DB
+certwrapper.efi : OBJFLAGS = --strip-unneeded $(call VENDOR_DB, $<)
+certwrapper.efi : SECTIONS=.text .reloc .db .sbat
+certwrapper.efi : VENDOR_DB_FILE?=db.esl
 
 %.efi : %.so
 ifneq ($(OBJCOPY_GTE224),1)
@@ -126,17 +126,17 @@ update :
 	git submodule update --init --recursive
 
 install :
-	install -D -d -m 0755 $(INSTALLROOT)/$(DATADIR)/certmule-$(VERSION)
-	install -m 0644 certmule.efi $(INSTALLROOT)/$(DATADIR)/certmule-$(VERSION)/certmule.efi
+	install -D -d -m 0755 $(INSTALLROOT)/$(DATADIR)/certwrapper-$(VERSION)
+	install -m 0644 certwrapper.efi $(INSTALLROOT)/$(DATADIR)/certwrapper-$(VERSION)/certwrapper.efi
 
 GITTAG = $(VERSION)
 
 test-archive:
-	@./make-archive $(if $(call get-config,certmule.origin),--origin "$(call get-config,certmule.origin)") --test "$(VERSION)"
+	@./make-archive $(if $(call get-config,certwrapper.origin),--origin "$(call get-config,certwrapper.origin)") --test "$(VERSION)"
 
 tag:
 	git tag --sign $(GITTAG) refs/heads/main
 	git tag -f latest-release $(GITTAG)
 
 archive: tag
-	@./make-archive $(if $(call get-config,certmule.origin),--origin "$(call get-config,certmule.origin)") --release "$(VERSION)" "$(GITTAG)" "certmule-$(GITTAG)"
+	@./make-archive $(if $(call get-config,certwrapper.origin),--origin "$(call get-config,certwrapper.origin)") --release "$(VERSION)" "$(GITTAG)" "certwrapper-$(GITTAG)"

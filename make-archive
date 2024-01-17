@@ -11,14 +11,14 @@ usage() {
 	{
 	echo "usage: make-archive [--origin ORIGIN] \\"
 	echo "                    [--test VERSION [GNUEFI_GIT_TAG]"
-	echo "                    |--release VERSION CERTMULE_GIT_TAG GNUEFI_GIT_TAG]"
+	echo "                    |--release VERSION CERTWRAPPER_GIT_TAG GNUEFI_GIT_TAG]"
 	} >>"${out}"
 	exit "${status}"
 }
 
 main() {
 	VERSION=""
-	CERTMULE_GIT_TAG=""
+	CERTWRAPPER_GIT_TAG=""
 	GNUEFI_GIT_TAG=""
 	ORIGIN="origin"
 	while [ $# -ne 0 ] ; do
@@ -52,7 +52,7 @@ main() {
 					usage 1
 				fi
 				if [ $# -lt 3 ] ; then
-					echo "error: missing certmule git tag" >>/dev/stderr
+					echo "error: missing certwrapper git tag" >>/dev/stderr
 					usage 1
 				fi
 				if [ $# -lt 4 ] ; then
@@ -60,7 +60,7 @@ main() {
 					usage 1
 				fi
 				VERSION="${2}"
-				CERTMULE_GIT_TAG="${3}"
+				CERTWRAPPER_GIT_TAG="${3}"
 				GNUEFI_GIT_TAG="${4}"
 				shift
 				shift
@@ -75,27 +75,27 @@ main() {
 	done
 
 	ARCHIVE_DIR="$(mktemp -d)"
-	rm -rf "${ARCHIVE_DIR}/certmule-${VERSION}" "${ARCHIVE_DIR}/certmule-${VERSION}"
-	mkdir -p "${ARCHIVE_DIR}/certmule-${VERSION}/gnu-efi"
+	rm -rf "${ARCHIVE_DIR}/certwrapper-${VERSION}" "${ARCHIVE_DIR}/certwrapper-${VERSION}"
+	mkdir -p "${ARCHIVE_DIR}/certwrapper-${VERSION}/gnu-efi"
 	cd gnu-efi || exit 1
 	if [ "x" = "x${GNUEFI_GIT_TAG}" ] ; then
-		git archive --format=tar "$(git log -1 --pretty=format:%h)" | ( cd "${ARCHIVE_DIR}/certmule-${VERSION}/gnu-efi" ; tar x )
+		git archive --format=tar "$(git log -1 --pretty=format:%h)" | ( cd "${ARCHIVE_DIR}/certwrapper-${VERSION}/gnu-efi" ; tar x )
 	else
-		git archive --format=tar "${ORIGIN}/${GNUEFI_GIT_TAG}" | ( cd "${ARCHIVE_DIR}/certmule-${VERSION}/gnu-efi" ; tar x )
+		git archive --format=tar "${ORIGIN}/${GNUEFI_GIT_TAG}" | ( cd "${ARCHIVE_DIR}/certwrapper-${VERSION}/gnu-efi" ; tar x )
 	fi
 	cd ..
-	if [ "x" = "x${CERTMULE_GIT_TAG}" ] ; then
-		git archive --format=tar "$(git log -1 --pretty=format:%h)" | ( cd "${ARCHIVE_DIR}/certmule-${VERSION}" ; tar x )
+	if [ "x" = "x${CERTWRAPPER_GIT_TAG}" ] ; then
+		git archive --format=tar "$(git log -1 --pretty=format:%h)" | ( cd "${ARCHIVE_DIR}/certwrapper-${VERSION}" ; tar x )
 	else
 		# ORIGIN doesn't yet have this tag
-		git archive --format=tar "${CERTMULE_GIT_TAG}" | ( cd "${ARCHIVE_DIR}/certmule-${VERSION}" ; tar x )
+		git archive --format=tar "${CERTWRAPPER_GIT_TAG}" | ( cd "${ARCHIVE_DIR}/certwrapper-${VERSION}" ; tar x )
 	fi
-	git log -1 --pretty=format:%H > "${ARCHIVE_DIR}/certmule-${VERSION}/commit"
+	git log -1 --pretty=format:%H > "${ARCHIVE_DIR}/certwrapper-${VERSION}/commit"
 	DIR="$PWD"
 	cd "${ARCHIVE_DIR}"
-	tar -c --bzip2 -f "${DIR}/certmule-${VERSION}.tar.bz2" "certmule-${VERSION}"
+	tar -c --bzip2 -f "${DIR}/certwrapper-${VERSION}.tar.bz2" "certwrapper-${VERSION}"
 	rm -rf "${ARCHIVE_DIR}"
-	echo "The archive is in certmule-${VERSION}.tar.bz2"
+	echo "The archive is in certwrapper-${VERSION}.tar.bz2"
 	exit 0
 }
 
