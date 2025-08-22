@@ -94,14 +94,18 @@ certwrapper.efi : OBJFLAGS = --strip-unneeded $(call VENDOR_DB, $<)
 certwrapper.efi : SECTIONS=.text .reloc .db .sbat
 certwrapper.efi : VENDOR_DB_FILE?=db.esl
 
-%.efi : %.so
+%.efi : %.so post-process-pe
 ifneq ($(OBJCOPY_GTE224),1)
 	$(error objcopy >= 2.24 is required)
 endif
 	$(OBJCOPY) $(foreach section,$(SECTIONS),-j $(section) ) \
 		   --file-alignment 512 --section-alignment 4096 -D \
 		   $(OBJFLAGS) \
-		   $(FORMAT) $^ $@
+		   $(FORMAT) $< $@
+	./post-process-pe -vv -n -x $@
+
+post-process-pe: post-process-pe.c
+	$(CC) -std=gnu11 -Og -g3 -Wall -Wextra -Wno-missing-field-initializers -Werror -o $@ $<
 
 sbat_data.o : | $(SBATPATH) $(VENDOR_SBATS)
 sbat_data.o : /dev/null
@@ -120,7 +124,7 @@ sbat_data.o : /dev/null
 	$(CC) $(BUILDFLAGS) -c -o $@ $^
 
 clean :
-	@rm -vf *.o *.so *.efi
+	@rm -vf *.o *.so *.efi post-process-pe
 
 update :
 	git submodule update --init --recursive

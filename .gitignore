@@ -11,6 +11,7 @@
 
 # Executables
 *.efi
+post-process-pe
 
 # EFI Security Database files
 *.esl
